@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stingray Accessory Manufacturers – System Fonts Only</title>
+  <style>
+    :root {
+      --base-font: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+
+      /* Brand + text */
+      --brand: #002C73;
+      --txt: var(--brand); /* Base heading blue */
+      --accent: #FFFFFF;   /* Burst color (white) */
+
+      /* Motion */
+      --trans-dur: 180ms;
+      --color-dur: 320ms;
+      --ease: cubic-bezier(.25, 1.15, .5, 1);
+
+      /* Background tuning */
+      --bg-base: #000000;
+      --bg-mid:  #0A0A0A;
+      --bg-hi:   #141414;
+      --grid-alpha-vert: 0.035; /* vertical lines opacity */
+      --grid-alpha-horz: 0.045; /* horizontal lines opacity */
+      --grid-gap: 60px;         /* grid spacing */
+      --brand-tint: 0.12;       /* diagonal brand tint intensity */
+    }
+
+    * { box-sizing: border-box; }
+
+    /* Smart corporate black background (no images) */
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: var(--txt);
+      font-family: var(--base-font);
+      padding: 24px;
+
+      /* Layered background:
+         1) Radial top highlight + vignette
+         2) Vertical depth fade
+         3) Diagonal brand tint (very subtle)
+         4) Subtle grid (vertical + horizontal)
+         5) Solid base
+      */
+      background:
+        radial-gradient(120% 90% at 50% -10%, var(--bg-hi) 0%, #0D0D0D 35%, #070707 70%, var(--bg-base) 100%),
+        linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 100%),
+        linear-gradient(135deg, rgba(0,44,115, var(--brand-tint)) 0%, rgba(0,0,0,0) 60%),
+        repeating-linear-gradient(0deg,
+          rgba(255,255,255, var(--grid-alpha-horz)) 0 1px,
+          transparent 1px calc(var(--grid-gap))
+        ),
+        repeating-linear-gradient(90deg,
+          rgba(255,255,255, var(--grid-alpha-vert)) 0 1px,
+          transparent 1px calc(var(--grid-gap))
+        ),
+        var(--bg-base);
+      color-scheme: dark;
+    }
+
+    h1 {
+      font-family: 'Trebuchet MS', Tahoma, Verdana, Arial, sans-serif; /* bold, clean system face */
+      font-weight: 800;
+      font-size: clamp(48px, 9.5vw, 112px);
+      line-height: 1.06;
+      letter-spacing: 0.01em;
+      margin: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      color: var(--txt);
+      white-space: nowrap; /* keep on one line per your layout */
+    }
+
+    /* Per-letter interaction (no 3D) */
+    .letter {
+      display: inline-block;
+      position: relative;
+      cursor: default;
+      color: var(--txt);
+      transition:
+        color var(--color-dur) var(--ease),
+        transform var(--trans-dur) var(--ease);
+      will-change: color, transform;
+    }
+
+    .letter:hover,
+    .letter.burst {
+      transform: translateY(-1px) scale(1.02);
+      color: var(--accent); /* white burst */
+    }
+
+    .letter.space { width: 0.4em; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .letter { transition: none; }
+      .letter:hover, .letter.burst { color: inherit; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1 id="heading">Stingray Accessory Manufacturers</h1>
+
+  <script>
+    (function () {
+      const heading = document.getElementById('heading');
+
+      /* System-only font cycle (no external fonts) */
+      const fonts = [
+        "'Arial Black', Arial, sans-serif",
+        "'Trebuchet MS', Tahoma, Verdana, Arial, sans-serif",
+        "'Courier New', Courier, monospace",
+        "Georgia, 'Times New Roman', serif",
+        "'Lucida Console', Monaco, monospace"
+      ];
+
+      const intervalMs       = 250;
+      const resetDelayMs     = 110;
+      const groupResetDelay  = 360; // allows color transition to breathe
+      const staggerMs        = 25;
+
+      /* Wrap letters (only once) */
+      function wrapLetters(el) {
+        if (el.querySelector('.letter')) return;
+        const text = el.textContent;
+        el.textContent = '';
+        const frag = document.createDocumentFragment();
+        for (const ch of text) {
+          const span = document.createElement('span');
+          span.className = 'letter';
+          if (ch === ' ') { span.classList.add('space'); span.textContent = '\u00A0'; }
+          else { span.textContent = ch; }
+          frag.appendChild(span);
+        }
+        el.appendChild(frag);
+      }
+      wrapLetters(heading);
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const letters = Array.from(heading.querySelectorAll('.letter'));
+      const states = letters.map(el => ({
+        el, step: 0, hovered: false, lastSwitch: 0,
+        resetAt: null, burstAt: null, burstActive: false, burstResetAt: null
+      }));
+
+      function bump(state, t) {
+        state.step = (state.step + 1) % fonts.length;
+        state.el.style.fontFamily = fonts[state.step];
+        state.lastSwitch = t;
+      }
+
+      function onEnter(e) {
+        const i = letters.indexOf(e.currentTarget);
+        const s = states[i];
+        s.hovered = true;
+        s.resetAt = null;
+        s.burstResetAt = null;
+        s.el.classList.remove('burst');
+        bump(s, performance.now()); // immediate font change feedback
+      }
+      function onLeave(e) {
+        const i = letters.indexOf(e.currentTarget);
+        const s = states[i];
+        s.hovered = false;
+        s.resetAt = performance.now() + resetDelayMs; // return to base stack
+      }
+
+      letters.forEach(el => {
+        el.addEventListener('pointerenter', onEnter);
+        el.addEventListener('pointerleave', onLeave);
+        el.addEventListener('mouseenter', onEnter);
+        el.addEventListener('mouseleave', onLeave);
+      });
+
+      /* Staggered burst wave on heading hover */
+      function groupBurst() {
+        const now = performance.now();
+        states.forEach((s, i) => { s.burstAt = now + i * staggerMs; });
+      }
+      function clearAll() {
+        states.forEach(s => {
+          s.hovered = false;
+          s.resetAt = null;
+          s.burstAt = null;
+          s.burstActive = false;
+          s.burstResetAt = null;
+          s.el.classList.remove('burst');
+          s.el.style.fontFamily = ''; // back to base system stack
+        });
+      }
+
+      heading.addEventListener('pointerenter', groupBurst);
+      heading.addEventListener('mouseenter', groupBurst);
+      heading.addEventListener('pointerleave', clearAll);
+      heading.addEventListener('mouseleave', clearAll);
+
+      /* Main loop */
+      function tick(t) {
+        for (const s of states) {
+          if (s.hovered && !prefersReduced && t - s.lastSwitch >= intervalMs) {
+            bump(s, t); // continue cycling while hovered
+          }
+          if (!s.hovered && s.resetAt && t >= s.resetAt) {
+            s.el.style.fontFamily = '';
+            s.resetAt = null;
+          }
+          if (!s.hovered && s.burstAt && t >= s.burstAt) {
+            bump(s, t);
+            s.el.classList.add('burst');
+            s.burstActive = true;
+            s.burstResetAt = t + groupResetDelay;
+            s.burstAt = null;
+          }
+          if (!s.hovered && s.burstActive && s.burstResetAt && t >= s.burstResetAt) {
+            s.el.classList.remove('burst');
+            s.el.style.fontFamily = '';
+            s.burstActive = false;
+            s.burstResetAt = null;
+          }
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>
